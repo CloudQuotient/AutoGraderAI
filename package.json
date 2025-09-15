@@ -1,0 +1,11 @@
+{
+  "name": "autograderai-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["frontend", "backend", "grader"],
+  "scripts": {
+    "lint": "echo 'No JS linting yet'",
+    "test": "echo 'No JS tests yet'",
+    "format": "echo 'No JS formatting yet'"
+  }
+}
