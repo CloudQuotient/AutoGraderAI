@@ -1,0 +1,495 @@
+--
+-- PostgreSQL database dump
+--
+
+\restrict Xo5sfo50gqdt0g2wJzxHfVIleHfcbq1mLOcyRGojOeK1maPEu4CGuxzoyZ6exBC
+
+-- Dumped from database version 17.6
+-- Dumped by pg_dump version 17.6
+
+-- Started on 2025-10-23 23:23:39
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- TOC entry 222 (class 1259 OID 41070)
+-- Name: classes; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.classes (
+    "ClassID" integer NOT NULL,
+    "InstructorID" integer,
+    "S3FolderPath" text
+);
+
+
+ALTER TABLE public.classes OWNER TO postgres;
+
+--
+-- TOC entry 221 (class 1259 OID 41069)
+-- Name: classes_ClassID_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public."classes_ClassID_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."classes_ClassID_seq" OWNER TO postgres;
+
+--
+-- TOC entry 4845 (class 0 OID 0)
+-- Dependencies: 221
+-- Name: classes_ClassID_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public."classes_ClassID_seq" OWNED BY public.classes."ClassID";
+
+
+--
+-- TOC entry 218 (class 1259 OID 41047)
+-- Name: instructors; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.instructors (
+    "InstructorID" integer NOT NULL,
+    "Name" character varying(100),
+    "Email" character varying(100),
+    "Password" character varying(256)
+);
+
+
+ALTER TABLE public.instructors OWNER TO postgres;
+
+--
+-- TOC entry 217 (class 1259 OID 41046)
+-- Name: instructors_InstructorID_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public."instructors_InstructorID_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."instructors_InstructorID_seq" OWNER TO postgres;
+
+--
+-- TOC entry 4846 (class 0 OID 0)
+-- Dependencies: 217
+-- Name: instructors_InstructorID_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public."instructors_InstructorID_seq" OWNED BY public.instructors."InstructorID";
+
+
+--
+-- TOC entry 224 (class 1259 OID 41084)
+-- Name: questions; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.questions (
+    "QuestionID" integer NOT NULL,
+    "InstructorID" integer,
+    "QuestionText" text,
+    "TestCases" json,
+    "Status" character varying(20),
+    "Results" json
+);
+
+
+ALTER TABLE public.questions OWNER TO postgres;
+
+--
+-- TOC entry 223 (class 1259 OID 41083)
+-- Name: questions_QuestionID_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public."questions_QuestionID_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."questions_QuestionID_seq" OWNER TO postgres;
+
+--
+-- TOC entry 4847 (class 0 OID 0)
+-- Dependencies: 223
+-- Name: questions_QuestionID_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public."questions_QuestionID_seq" OWNED BY public.questions."QuestionID";
+
+
+--
+-- TOC entry 220 (class 1259 OID 41056)
+-- Name: students; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.students (
+    "StudentID" integer NOT NULL,
+    "Name" character varying(100),
+    "Email" character varying(100),
+    "Password" character varying(256),
+    "InstructorID" integer
+);
+
+
+ALTER TABLE public.students OWNER TO postgres;
+
+--
+-- TOC entry 219 (class 1259 OID 41055)
+-- Name: students_StudentID_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public."students_StudentID_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."students_StudentID_seq" OWNER TO postgres;
+
+--
+-- TOC entry 4848 (class 0 OID 0)
+-- Dependencies: 219
+-- Name: students_StudentID_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public."students_StudentID_seq" OWNED BY public.students."StudentID";
+
+
+--
+-- TOC entry 226 (class 1259 OID 41098)
+-- Name: submissions; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.submissions (
+    "SubmissionID" integer NOT NULL,
+    "StudentID" integer,
+    "QuestionID" integer,
+    "S3FilePath" text,
+    "Score" double precision,
+    "Feedback" text
+);
+
+
+ALTER TABLE public.submissions OWNER TO postgres;
+
+--
+-- TOC entry 225 (class 1259 OID 41097)
+-- Name: submissions_SubmissionID_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public."submissions_SubmissionID_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."submissions_SubmissionID_seq" OWNER TO postgres;
+
+--
+-- TOC entry 4849 (class 0 OID 0)
+-- Dependencies: 225
+-- Name: submissions_SubmissionID_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public."submissions_SubmissionID_seq" OWNED BY public.submissions."SubmissionID";
+
+
+--
+-- TOC entry 4663 (class 2604 OID 41073)
+-- Name: classes ClassID; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.classes ALTER COLUMN "ClassID" SET DEFAULT nextval('public."classes_ClassID_seq"'::regclass);
+
+
+--
+-- TOC entry 4661 (class 2604 OID 41050)
+-- Name: instructors InstructorID; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.instructors ALTER COLUMN "InstructorID" SET DEFAULT nextval('public."instructors_InstructorID_seq"'::regclass);
+
+
+--
+-- TOC entry 4664 (class 2604 OID 41087)
+-- Name: questions QuestionID; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.questions ALTER COLUMN "QuestionID" SET DEFAULT nextval('public."questions_QuestionID_seq"'::regclass);
+
+
+--
+-- TOC entry 4662 (class 2604 OID 41059)
+-- Name: students StudentID; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.students ALTER COLUMN "StudentID" SET DEFAULT nextval('public."students_StudentID_seq"'::regclass);
+
+
+--
+-- TOC entry 4665 (class 2604 OID 41101)
+-- Name: submissions SubmissionID; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.submissions ALTER COLUMN "SubmissionID" SET DEFAULT nextval('public."submissions_SubmissionID_seq"'::regclass);
+
+
+--
+-- TOC entry 4835 (class 0 OID 41070)
+-- Dependencies: 222
+-- Data for Name: classes; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.classes ("ClassID", "InstructorID", "S3FolderPath") FROM stdin;
+1	1	s3://autograder-dummy/submissions/class_1
+2	2	s3://autograder-dummy/submissions/class_2
+\.
+
+
+--
+-- TOC entry 4831 (class 0 OID 41047)
+-- Dependencies: 218
+-- Data for Name: instructors; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.instructors ("InstructorID", "Name", "Email", "Password") FROM stdin;
+1	John Doe	johndoe@gmail.com	johndoe
+2	Jane Doe	janedoe@gmail.com	janedoe
+\.
+
+
+--
+-- TOC entry 4837 (class 0 OID 41084)
+-- Dependencies: 224
+-- Data for Name: questions; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.questions ("QuestionID", "InstructorID", "QuestionText", "TestCases", "Status", "Results") FROM stdin;
+1	1	Write a program to add two numbers. Input: two integers separated by space. Output: their sum.	[{"input": "2 3", "output": "5"}, {"input": "10 20", "output": "30"}]	open	\N
+3	1	Dummy Question	[{"input": "1", "output": "2"}]	open	\N
+2	2	Write a program to find the factorial of a number.	[{"input": "5", "output": "120"}, {"input": "3", "output": "6"}]	closed	[\n  {\n    "msg": "Random Results"\n  },\n  {\n    "msg2": "More Random Results"\n  }\n]
+\.
+
+
+--
+-- TOC entry 4833 (class 0 OID 41056)
+-- Dependencies: 220
+-- Data for Name: students; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.students ("StudentID", "Name", "Email", "Password", "InstructorID") FROM stdin;
+1	Alice Johnson	alice@gmail.com	alice	1
+2	Bob Smith	bob@gmail.com	bob	1
+3	Charlie Brown	charlie@gmail.com	charlie	2
+\.
+
+
+--
+-- TOC entry 4839 (class 0 OID 41098)
+-- Dependencies: 226
+-- Data for Name: submissions; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.submissions ("SubmissionID", "StudentID", "QuestionID", "S3FilePath", "Score", "Feedback") FROM stdin;
+1	1	1	s3://autograder-ai/submissions/class_1/student_1_question_1.py	\N	\N
+2	2	1	s3://autograder-ai/submissions/class_1/student_2_question_1.py	\N	\N
+3	3	2	s3://autograder-ai/submissions/class_2/student_3_question_2.py	10	Perfect solution.
+\.
+
+
+--
+-- TOC entry 4850 (class 0 OID 0)
+-- Dependencies: 221
+-- Name: classes_ClassID_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."classes_ClassID_seq"', 1, false);
+
+
+--
+-- TOC entry 4851 (class 0 OID 0)
+-- Dependencies: 217
+-- Name: instructors_InstructorID_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."instructors_InstructorID_seq"', 1, false);
+
+
+--
+-- TOC entry 4852 (class 0 OID 0)
+-- Dependencies: 223
+-- Name: questions_QuestionID_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."questions_QuestionID_seq"', 1, false);
+
+
+--
+-- TOC entry 4853 (class 0 OID 0)
+-- Dependencies: 219
+-- Name: students_StudentID_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."students_StudentID_seq"', 1, false);
+
+
+--
+-- TOC entry 4854 (class 0 OID 0)
+-- Dependencies: 225
+-- Name: submissions_SubmissionID_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public."submissions_SubmissionID_seq"', 1, false);
+
+
+--
+-- TOC entry 4675 (class 2606 OID 41077)
+-- Name: classes classes_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.classes
+    ADD CONSTRAINT classes_pkey PRIMARY KEY ("ClassID");
+
+
+--
+-- TOC entry 4667 (class 2606 OID 41054)
+-- Name: instructors instructors_Email_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.instructors
+    ADD CONSTRAINT "instructors_Email_key" UNIQUE ("Email");
+
+
+--
+-- TOC entry 4669 (class 2606 OID 41052)
+-- Name: instructors instructors_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.instructors
+    ADD CONSTRAINT instructors_pkey PRIMARY KEY ("InstructorID");
+
+
+--
+-- TOC entry 4677 (class 2606 OID 41091)
+-- Name: questions questions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.questions
+    ADD CONSTRAINT questions_pkey PRIMARY KEY ("QuestionID");
+
+
+--
+-- TOC entry 4671 (class 2606 OID 41063)
+-- Name: students students_Email_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.students
+    ADD CONSTRAINT "students_Email_key" UNIQUE ("Email");
+
+
+--
+-- TOC entry 4673 (class 2606 OID 41061)
+-- Name: students students_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.students
+    ADD CONSTRAINT students_pkey PRIMARY KEY ("StudentID");
+
+
+--
+-- TOC entry 4679 (class 2606 OID 41105)
+-- Name: submissions submissions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.submissions
+    ADD CONSTRAINT submissions_pkey PRIMARY KEY ("SubmissionID");
+
+
+--
+-- TOC entry 4681 (class 2606 OID 41078)
+-- Name: classes classes_InstructorID_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.classes
+    ADD CONSTRAINT "classes_InstructorID_fkey" FOREIGN KEY ("InstructorID") REFERENCES public.instructors("InstructorID");
+
+
+--
+-- TOC entry 4682 (class 2606 OID 41092)
+-- Name: questions questions_InstructorID_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.questions
+    ADD CONSTRAINT "questions_InstructorID_fkey" FOREIGN KEY ("InstructorID") REFERENCES public.instructors("InstructorID");
+
+
+--
+-- TOC entry 4680 (class 2606 OID 41064)
+-- Name: students students_InstructorID_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.students
+    ADD CONSTRAINT "students_InstructorID_fkey" FOREIGN KEY ("InstructorID") REFERENCES public.instructors("InstructorID");
+
+
+--
+-- TOC entry 4683 (class 2606 OID 41111)
+-- Name: submissions submissions_QuestionID_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.submissions
+    ADD CONSTRAINT "submissions_QuestionID_fkey" FOREIGN KEY ("QuestionID") REFERENCES public.questions("QuestionID");
+
+
+--
+-- TOC entry 4684 (class 2606 OID 41106)
+-- Name: submissions submissions_StudentID_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.submissions
+    ADD CONSTRAINT "submissions_StudentID_fkey" FOREIGN KEY ("StudentID") REFERENCES public.students("StudentID");
+
+
+-- Completed on 2025-10-23 23:23:39
+
+--
+-- PostgreSQL database dump complete
+--
+
+\unrestrict Xo5sfo50gqdt0g2wJzxHfVIleHfcbq1mLOcyRGojOeK1maPEu4CGuxzoyZ6exBC
+

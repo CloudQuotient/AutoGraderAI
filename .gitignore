@@ -1,17 +1,40 @@
-# Node
-node_modules/
-dist/
-.env
+# amplify
+node_modules
+.amplify
+amplify_outputs*
+amplifyconfiguration*
 
-# Python
+# Environment files (do not commit secrets)
+.env
+.env.*
+*.env
+.env.local
+
+# Keep an example/env template in the repo
+!.env.example
+
+# Python cache and virtual environments
 __pycache__/
-*.pyc
-venv/
-.env
+*.py[cod]
+*.pyo
+.venv/
 
-# VSCode
+# Node modules (root and frontend)
+node_modules/
+frontend/node_modules/
+
+# Byte-compiled / distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Logs
+.log
+logs/
+
+# IDE/editor files
 .vscode/
+.idea/
 
-# OS
+# macOS
 .DS_Store
-Thumbs.db
