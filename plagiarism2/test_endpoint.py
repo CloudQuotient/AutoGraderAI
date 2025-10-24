@@ -40,6 +40,10 @@ input_payload = {
 
 payload_json = json.dumps(input_payload)
 
+print(payload_json)
+
+'''{"s3_embedding_urls": ["s3://autograder-dummy/embeddings/code1.py.npy", "s3://autograder-dummy/embeddings/code2.py.npy", "s3://autograder-dummy/embeddings/code3.py.npy"], "filenames": ["code1.py", "code2.py", "code3.py"], "bucket": "autograder-dummy", "threshold": 0.85}'''
+
 # ----------------- Step 4: Invoke SageMaker endpoint -----------------
 print(f"\n🚀 Invoking SageMaker endpoint: {ENDPOINT_NAME}")
 
