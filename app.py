@@ -121,7 +121,7 @@ def StudentQuestions(class_id):
             question_list = [
                 {
                     "QuestionID": q.QuestionID,
-                    "Status": q.status
+                    "Status": q.Status
                 }
                 for q in questions
             ]
@@ -236,6 +236,8 @@ def StudentQuestionSubmission(question_id):
                     "S3FilePath": s3_path
                 }), 200
 
+                #add the route to call the ECS to evaluate the code and bedrock to give feedback and update the submission in the database
+
             except Exception as e:
                 db.session.rollback()
                 print("Error during submission upload:", str(e))
@@ -248,6 +250,7 @@ def StudentQuestionSubmission(question_id):
                         os.remove(temp_path)
                     except Exception as cleanup_error:
                         print("Warning: Failed to delete temp file:", cleanup_error)
+            
 
         else:
             return jsonify({"msg": "Only POST Requests are Allowed"}), 400
