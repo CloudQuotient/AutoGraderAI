@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import axios from 'axios'
+
+// --- ADD THESE IMPORTS ---
+import { AuthenticationDetails, CognitoUser } from 'amazon-cognito-identity-js'
+import { userPool } from '../cognitoConfig' // Adjusted path to src/cognitoConfig.js
 
 function Login() {
   const [email, setEmail] = useState('')
@@ -13,15 +18,67 @@ function Login() {
     setLoading(true)
 
     try {
-      // For now, we'll use placeholder logic
-      // Eventually this will call the actual login endpoint
-      const role = email.includes('instructor') ? 'instructor' : 'student'
-      const userId = 1
+      // --- START: NEW COGNITO LOGIC ---
+
+      // 1. Set up Cognito auth objects
+      const cognitoUser = new CognitoUser({
+        Username: email,
+        Pool: userPool,
+      })
+
+      const authDetails = new AuthenticationDetails({
+        Username: email,
+        Password: password,
+      })
+
+      // 2. Create a Promise wrapper for the Cognito login
+      const loginToCognito = () => {
+        return new Promise((resolve, reject) => {
+          cognitoUser.authenticateUser(authDetails, {
+            onSuccess: (session) => {
+              // 3. Get the *Cognito ID Token* on success
+              const cognitoIdToken = session.getIdToken().getJwtToken()
+              resolve(cognitoIdToken)
+            },
+            onFailure: (err) => {
+              reject(err)
+            },
+            // 4. This handles the 'FORCE_CHANGE_PASSWORD' state for imported users
+            newPasswordRequired: () => {
+              // We'll just re-use the temporary password as the new permanent one.
+              // A real app might show a modal asking for a new password.
+              cognitoUser.completeNewPasswordChallenge(password, {}, {
+                onSuccess: (session) => {
+                  const cognitoIdToken = session.getIdToken().getJwtToken()
+                  resolve(cognitoIdToken)
+                },
+                onFailure: (err) => {
+                  reject(err)
+                },
+              })
+            },
+          })
+        })
+      }
+
+      // 5. Authenticate with Cognito first
+      const cognitoIdToken = await loginToCognito()
+
+      // --- END: NEW COGNITO LOGIC ---
+
+
+      // 6. Call YOUR backend with the Cognito token (this line is modified)
+      const response = await axios.post('http://localhost:5000/api/login', {
+        token: cognitoIdToken, // Send the token, not email/pass
+      })
+
+      // 7. This part is THE SAME! It handles the response from your backend.
+      const { access_token, role, user_id } = response.data
 
       // Store user info in localStorage
       localStorage.setItem('role', role)
-      localStorage.setItem('userId', userId.toString())
-      localStorage.setItem('token', 'mock-token') // In production, get real JWT
+      localStorage.setItem('userId', user_id.toString())
+      localStorage.setItem('token', access_token)
 
       toast.success(`Logged in as ${role}`)
 
@@ -34,7 +91,24 @@ function Login() {
         navigate('/login')
       }
     } catch (error) {
-      toast.error('Login failed. Please try again.')
+      // This error handling is now smarter
+      let errorMsg
+
+      if (error.code) {
+        // This is a Cognito error (e.g., 'UserNotFoundException')
+        if (error.code === 'UserNotFoundException') {
+          errorMsg = 'User does not exist.'
+        } else if (error.code === 'NotAuthorizedException') {
+          errorMsg = 'Incorrect email or password.'
+        } else {
+          errorMsg = error.message || 'Login failed. Please try again.'
+        }
+      } else {
+        // This is an error from your backend (axios)
+        errorMsg = error.response?.data?.message || 'Login failed. Please try again.'
+      }
+
+      toast.error(errorMsg)
       console.error('Login error:', error)
     } finally {
       setLoading(false)
@@ -42,6 +116,7 @@ function Login() {
   }
 
   return (
+    // NO CHANGES NEEDED TO YOUR UI!
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
         <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">
@@ -84,9 +159,6 @@ function Login() {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-        <p className="text-center text-sm text-gray-600 mt-4">
-          Test: Use "instructor" in email for instructor role
-        </p>
       </div>
     </div>
   )

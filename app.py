@@ -1,8 +1,24 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_cors import CORS  # Import CORS
+from flask_jwt_extended import (
+    JWTManager,
+    create_access_token,
+    jwt_required,
+    get_jwt,
+    get_jwt_identity,
+)
 from dotenv import load_dotenv
 import os
 from werkzeug.utils import secure_filename
+# Add these imports at the top
+import requests
+import time
+from jose import jwk, jwt as jose_jwt
+from jose.exceptions import JOSEError
+
+# --- Add this new helper function somewhere in app.py ---
+
+
 
 load_dotenv()
 
@@ -18,7 +34,21 @@ CORS(app)  # This will allow all domains to access your API, you can limit it la
 # Configure the app (e.g., database URI)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Disable modification tracking
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'change-this-in-prod')
 
+# Load Cognito config from environment
+COGNITO_USER_POOL_ID = os.getenv('COGNITO_USER_POOL_ID')
+COGNITO_APP_CLIENT_ID = os.getenv('COGNITO_APP_CLIENT_ID')
+COGNITO_REGION = os.getenv('COGNITO_REGION')
+COGNITO_ISSUER = f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}"
+JWKS_URL = f"{COGNITO_ISSUER}/.well-known/jwks.json"
+
+# Fetch and cache the JWKS (JSON Web Key Set)
+try:
+    jwks = requests.get(JWKS_URL).json()["keys"]
+except requests.exceptions.RequestException as e:
+    print(f"Error fetching JWKS: {e}")
+    jwks = []
 # Initialize the database
 # Import the `db` instance and models from models.py
 from models import db, Student, Instructor, Class, Question, Submission
@@ -26,21 +56,170 @@ from models import db, Student, Instructor, Class, Question, Submission
 # Register the app with the SQLAlchemy instance
 db.init_app(app)
 
-# ----------------------------- Placeholder ------------------------------
+# Initialize JWT
+jwt_manager = JWTManager(app)
 
-# Change this Function with the Extraction of Role and User ID from the JWT Token
+# ----------------------------- Auth Helpers ------------------------------
+
+def verify_cognito_token(token):
+    """
+    Verifies a Cognito ID Token.
+    Returns the decoded claims if valid, otherwise returns None.
+    """
+    if not jwks:
+        print("JWKS not loaded. Cannot verify token.")
+        return None
+
+    try:
+        header = jose_jwt.get_unverified_header(token)
+        kid = header["kid"]
+        key = next((k for k in jwks if k["kid"] == kid), None)
+        if not key:
+            print("Public key not found in JWKS.")
+            return None
+
+        claims = jose_jwt.decode(
+            token,
+            key,
+            algorithms=["RS256"],
+            issuer=COGNITO_ISSUER,
+            audience=COGNITO_APP_CLIENT_ID 
+        )
+
+        if claims.get("token_use") != "id":
+            print("Token is not an ID token.")
+            return None
+        
+        if time.time() > claims["exp"]:
+            print("Token is expired.")
+            return None
+
+        return claims
+
+    except JOSEError as e:
+        print(f"Token verification failed: {e}")
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return None
+
 def getRoleID():
-    switch = 0
+    """Extract role and user_id from the JWT claims.
 
-    if switch:
-        role = "instructor"
-        user_id = 1
+    This function assumes the route is protected with @jwt_required().
+    """
+    try:
+        claims = get_jwt()
+        print(f"JWT Claims: {claims}")
+        role = claims.get('role')
+        user_id = claims.get('user_id')
+        print(f"Extracted role: {role}, user_id: {user_id}")
+        return role, user_id
+    except Exception as e:
+        print(f"Error in getRoleID: {e}")
+        return None, None
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    # Step 1: Get the Cognito ID token from the frontend
+    data = request.get_json() or {}
+    cognito_id_token = data.get('token')
+
+    if not cognito_id_token:
+        return jsonify({"message": "Cognito ID token is required"}), 400
+
+    # Step 2: Verify the Cognito token
+    claims = verify_cognito_token(cognito_id_token)
     
-    else:
-        role = "student"
-        user_id = 1
+    if not claims:
+        return jsonify({"message": "Invalid or expired Cognito token"}), 401
 
-    return role, user_id
+    # Step 3: Extract email and role from the token
+    email = claims.get('email')
+    groups = claims.get('cognito:groups', [])
+    
+    role = None
+    if 'Instructor' in groups:
+        role = 'instructor'
+    elif 'Student' in groups:
+        role = 'student'
+
+    if not role or not email:
+        return jsonify({"message": "User email or role not found in token"}), 400
+
+    # Step 4: Find the user in your *local* database
+    user = None
+    if role == 'instructor':
+        user = db.session.query(Instructor).filter_by(Email=email).first()
+    elif role == 'student':
+        user = db.session.query(Student).filter_by(Email=email).first()
+
+    if not user:
+        # This will happen if you have a user in Cognito but forgot
+        # to add them to your local Instructors/Students table.
+        return jsonify({"message": f"User {email} not found in local database."}), 404
+        
+    # Step 5: Get the local user ID
+    user_id = user.InstructorID if role == 'instructor' else user.StudentID
+
+    # Step 6: Create your *own* flask-jwt-extended "App Token"
+    additional_claims = {
+        'role': role,
+        'user_id': user_id,
+    }
+    access_token = create_access_token(identity=str(user_id), additional_claims=additional_claims)
+
+    # Step 7: Send your "App Token" back to the frontend
+    return jsonify({
+        'access_token': access_token,  
+        'role': role,
+        'user_id': user_id,
+    }), 200
+
+# @app.route('/api/login', methods=['POST'])
+# def login():
+#     data = request.get_json() or {}
+#     email = data.get('email')
+#     password = data.get('password')
+#     preferred_role = data.get('role')  # optional: 'student' | 'instructor'
+
+#     if not email or not password:
+#         return jsonify({"message": "email and password are required"}), 400
+
+#     # Try instructor if role specified or as first attempt
+#     user = None
+#     role = None
+
+#     if preferred_role in (None, 'instructor'):
+#         user = db.session.query(Instructor).filter_by(Email=email).first()
+#         if user and user.Password == password:
+#             role = 'instructor'
+
+#     # If not instructor, try student
+#     if not role and preferred_role in (None, 'student'):
+#         user = db.session.query(Student).filter_by(Email=email).first()
+#         if user and user.Password == password:
+#             role = 'student'
+
+#     if not role:
+#         return jsonify({"message": "Invalid credentials"}), 401
+
+#     user_id = user.InstructorID if role == 'instructor' else user.StudentID
+
+#     additional_claims = {
+#         'role': role,
+#         'user_id': user_id,
+#     }
+#     # Identity should be a string to avoid "Subject must be a string" errors
+#     access_token = create_access_token(identity=str(user_id), additional_claims=additional_claims)
+
+#     return jsonify({
+#         'access_token': access_token,
+#         'role': role,
+#         'user_id': user_id,
+#     }), 200
+
+
 
 # ------------------------------ Routes ----------------------------------
 
@@ -57,6 +236,7 @@ def index():
     
 # This function is for Displaying all the Current Classes enrolled by the Student 
 @app.route('/api/student/classes', methods = ["GET"])
+@jwt_required()
 def StudentClasses():
     role, user_id = getRoleID()
     
@@ -99,6 +279,7 @@ def StudentClasses():
 
 # This function is when the Student clicks on a Particular Class, All the questions (Just the QuestionID and Status) assigned in that Class is displayed
 @app.route('/api/student/class/<int:class_id>', methods = ["GET"])
+@jwt_required()
 def StudentQuestions(class_id):
     role, user_id = getRoleID()
 
@@ -139,6 +320,7 @@ def StudentQuestions(class_id):
 # If the question is 'open' and the student hasn't attempted it, The Question details and upload button is displayed
 # If the question is 'open' and the student has attempted it, The student will receive a message to wait for the results (no upload button should be shown)
 @app.route('/api/student/class/<int:class_id>/<int:question_id>', methods = ["GET"])
+@jwt_required()
 def StudentQuestionAttempt(class_id, question_id):
     role, user_id = getRoleID()
 
@@ -186,6 +368,7 @@ def StudentQuestionAttempt(class_id, question_id):
 # When route is called, it should consist of the code file along with it in the request body
 # The Question closes and the student cannot attempt it again (Prolly route to the Previous Page to allow changes to take place after a response is generated from this route call)  
 @app.route('/api/student/submission/<int:question_id>', methods=["POST"])
+@jwt_required()
 def StudentQuestionSubmission(question_id):
     role, user_id = getRoleID()
 
@@ -262,8 +445,9 @@ def StudentQuestionSubmission(question_id):
 # When route is called, it should consist of the code file along with it in the request body
 # This is not considered as the final Submission, and response consists of results of the public test-cases
 @app.route('/api/student/run/<int:question_id>', methods = ["POST"])
+@jwt_required()
 def StudentQuestionRun(question_id):
-    role, user_id = getRoleID
+    role, user_id = getRoleID()
 
     if role == 'student':
         if request.method == "POST":
@@ -317,8 +501,11 @@ def StudentQuestionRun(question_id):
 
 # This function Returns all the Classes and their details taken by that particular Instructor
 @app.route('/api/instructor/classes', methods = ["GET"])
+@jwt_required()
 def InstructorClasses():
+    print("InstructorClasses called")
     role, user_id = getRoleID()
+    print(f"Role: {role}, User ID: {user_id}")
 
     if role == 'instructor':
         if request.method == "GET":
@@ -357,6 +544,7 @@ def InstructorClasses():
     
 # This function returns all the questions (QuestionID, Status) assigned by the instructor for a particular Class
 @app.route('/api/instructor/class/<int:class_id>', methods = ["GET"])
+@jwt_required()
 def InstructorQuestions(class_id):
     role, user_id = getRoleID()
 
@@ -386,6 +574,7 @@ def InstructorQuestions(class_id):
 # If the question is 'open', then the Instructor will be shown an 'Evaluate' button to evaluate all submissions
 # If the question is 'closed', then display the plagiarism results
 @app.route('/api/instructor/class/<int:class_id>/<int:question_id>', methods = ["GET"])
+@jwt_required()
 def InstructorQuestionSubmission(class_id, question_id):
     role, user_id = getRoleID()
 
@@ -419,6 +608,7 @@ def InstructorQuestionSubmission(class_id, question_id):
 # This route is to be called when the 'Evaluate' button is clicked by the Instructor to Run the Feedback Generator and Plagiarism Detector
 # Until a response is returned, display 'Question is being Evaluated...'
 @app.route('/api/instructor/evaluate/<int:question_id>', methods = ["POST"])
+@jwt_required()
 def InstructorEvaluateQuestion(question_id):
     role, user_id = getRoleID()
 
@@ -458,6 +648,7 @@ def InstructorEvaluateQuestion(question_id):
 # The New Question has fields to be filled by the Instructor and sent through the request body to this endpoint and assigned
 # View Multi-lined comments inside the function to see Example Request and Example Response
 @app.route('/api/instructor/class/<int:class_id>/question', methods=["POST"])
+@jwt_required()
 def InstructorAddQuestion(class_id):
     role, user_id = getRoleID()
 
