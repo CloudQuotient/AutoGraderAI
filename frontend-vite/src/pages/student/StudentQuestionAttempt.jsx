@@ -12,6 +12,22 @@ function StudentQuestionAttempt() {
   const [testRunResults, setTestRunResults] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [testing, setTesting] = useState(false)
+  const [language, setLanguage] = useState('Python')
+  const [prevLanguage, setPrevLanguage] = useState('Python')
+
+  const languageExtensions = {
+    'C': 'c',
+    'C++': 'cpp',
+    'Java': 'java',
+    'Python': 'py'
+  }
+
+  const monacoLanguages = {
+    'C': 'c',
+    'C++': 'cpp',
+    'Java': 'java',
+    'Python': 'python'
+  }
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -35,12 +51,19 @@ function StudentQuestionAttempt() {
     try {
       setTesting(true)
       
-      // Create a File object from the code
+      const ext = languageExtensions[language]
+      const filename = `Main.${ext}`
       const blob = new Blob([code], { type: 'text/plain' })
-      const file = new File([blob], 'solution.py', { type: 'text/plain' })
+      const file = new File([blob], filename, { type: 'text/plain' })
       
       const formData = new FormData()
       formData.append('file', file)
+
+      if (prevLanguage !== language && prevLanguage) {
+        const oldExt = languageExtensions[prevLanguage];
+        const oldFilename = `Main.${oldExt}`;
+        formData.append('old_filename', oldFilename);
+      }
 
       const response = await API.post(`/api/student/run/${questionId}`, formData, {
         headers: {
@@ -50,6 +73,7 @@ function StudentQuestionAttempt() {
 
       setTestRunResults(response.data.Results)
       toast.success('Test run completed successfully')
+      setPrevLanguage(language);
     } catch (error) {
       console.error('Error running test:', error)
       toast.error('Test run failed')
@@ -62,12 +86,19 @@ function StudentQuestionAttempt() {
     try {
       setSubmitting(true)
       
-      // Create a File object from the code
+      const ext = languageExtensions[language]
+      const filename = `Main.${ext}`
       const blob = new Blob([code], { type: 'text/plain' })
-      const file = new File([blob], 'solution.py', { type: 'text/plain' })
+      const file = new File([blob], filename, { type: 'text/plain' })
       
       const formData = new FormData()
       formData.append('file', file)
+
+      if (prevLanguage !== language && prevLanguage) {
+        const oldExt = languageExtensions[prevLanguage];
+        const oldFilename = `Main.${oldExt}`;
+        formData.append('old_filename', oldFilename);
+      }
 
       await API.post(`/api/student/submission/${questionId}`, formData, {
         headers: {
@@ -77,6 +108,7 @@ function StudentQuestionAttempt() {
 
       toast.success('Submission successful!')
       navigate(`/student/class/${classId}`)
+      setPrevLanguage(language);
     } catch (error) {
       console.error('Error submitting:', error)
       toast.error('Submission failed')
@@ -182,10 +214,26 @@ function StudentQuestionAttempt() {
                 <div className="p-4 border-b border-gray-200">
                   <h2 className="text-xl font-semibold text-gray-900">Code Editor</h2>
                 </div>
+                <div className="flex items-center px-4 py-2 space-x-4">
+                  <label className="text-sm font-bold text-gray-700 whitespace-nowrap">Select Code Language:</label>
+                  <select
+                    value={language}
+                    onChange={(e) => {
+                      setPrevLanguage(language);
+                      setLanguage(e.target.value);
+                    }}
+                    className="flex-1 block rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3"
+                  >
+                    <option>C</option>
+                    <option>C++</option>
+                    <option>Java</option>
+                    <option>Python</option>
+                  </select>
+                </div>
                 <div className="h-96">
                   <Editor
                     height="100%"
-                    defaultLanguage="python"
+                    language={monacoLanguages[language]}
                     value={code}
                     onChange={setCode}
                     theme="vs-light"

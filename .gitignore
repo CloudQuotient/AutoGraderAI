@@ -1,40 +1,39 @@
-# amplify
-node_modules
-.amplify
-amplify_outputs*
-amplifyconfiguration*
-
-# Environment files (do not commit secrets)
-.env
-.env.*
-*.env
-.env.local
-
-# Keep an example/env template in the repo
-!.env.example
-
-# Python cache and virtual environments
+# Python ignores
 __pycache__/
-*.py[cod]
+*.pyc
 *.pyo
-.venv/
+*.pyd
+.Python
+env/
+venv/
+*.env
 
-# Node modules (root and frontend)
+# Node.js ignores
 node_modules/
-frontend/node_modules/
+npm-debug.log
+yarn-error.log
 
-# Byte-compiled / distribution / packaging
-build/
+# Temp and build files
+temp_uploads/
 dist/
-*.egg-info/
+build/
+*.log
 
-# Logs
-.log
-logs/
+# OS generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
 
-# IDE/editor files
+# Editor files
 .vscode/
 .idea/
 
-# macOS
-.DS_Store
+# Database
+instance/
+*.db
+*.sqlite
+
+# Other
+*.bak
+*.swp
+*~

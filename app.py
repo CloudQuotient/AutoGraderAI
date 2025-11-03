@@ -22,7 +22,7 @@ from jose.exceptions import JOSEError
 
 load_dotenv()
 
-UPLOAD_FOLDER = "temp_uploads"
+UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Initialize the Flask application
@@ -389,6 +389,12 @@ def StudentQuestionSubmission(question_id):
             temp_path = os.path.join(UPLOAD_FOLDER, filename)
             file.save(temp_path)
 
+            old_filename = request.form.get('old_filename')
+            if old_filename:
+                old_path = os.path.join(UPLOAD_FOLDER, old_filename)
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+
             try:
                 # Step 4: Upload to S3 using your helper function
                 # s3_path = CodeUploadS3(temp_path)
@@ -425,14 +431,6 @@ def StudentQuestionSubmission(question_id):
                 db.session.rollback()
                 print("Error during submission upload:", str(e))
                 return jsonify({"error": "Failed to upload submission"}), 500
-
-            finally:
-                # Step 7: Always clean up local temp file, even if something failed
-                if os.path.exists(temp_path):
-                    try:
-                        os.remove(temp_path)
-                    except Exception as cleanup_error:
-                        print("Warning: Failed to delete temp file:", cleanup_error)
             
 
         else:
@@ -466,6 +464,12 @@ def StudentQuestionRun(question_id):
             temp_path = os.path.join(UPLOAD_FOLDER, filename)
             file.save(temp_path)
 
+            old_filename = request.form.get('old_filename')
+            if old_filename:
+                old_path = os.path.join(UPLOAD_FOLDER, old_filename)
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+
             try:
                 # Step 4: Upload to S3 (temporary)
                 # s3_path = CodeUploadS3(temp_path)
@@ -484,15 +488,8 @@ def StudentQuestionRun(question_id):
             except Exception as e:
                 print("Error during test run:", str(e))
                 return jsonify({"error": "Failed to run code"}), 500
-
-            finally:
-                # Step 7: Always delete local file after use
-                if os.path.exists(temp_path):
-                    try:
-                        os.remove(temp_path)
-                    except Exception as cleanup_error:
-                        print("Warning: Failed to delete temp run file:", cleanup_error)
             
+
         else:
             return jsonify({"msg": "Only POST Requests are Allowed"}), 400
         
