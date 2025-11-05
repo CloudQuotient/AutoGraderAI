@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 # Load environment variables from .env
 load_dotenv()
 
-def CodeUpload(S3FolderPath: str, S3FileName: str, CodeFilePath: str):
+def CodeUploadS3(S3FolderPath: str, S3FileName: str, CodeFilePath: str):
     """
     Uploads a local code file to the given S3 folder path.
 
@@ -46,9 +46,13 @@ def CodeUpload(S3FolderPath: str, S3FileName: str, CodeFilePath: str):
         # Upload file
         s3.upload_file(CodeFilePath, bucket_name, s3_key)
 
-        file_url = f"https://{bucket_name}.s3.{os.getenv('AWS_REGION')}.amazonaws.com/{s3_key}"
-        print(f"✅ Uploaded successfully to: {file_url}")
-        return file_url
+        # file_url = f"https://{bucket_name}.s3.{os.getenv('AWS_REGION')}.amazonaws.com/{s3_key}"
+        # print(f"✅ Uploaded successfully to: {file_url}")
+        # return file_url
+    
+        s3_uri = f"s3://{bucket_name}/{s3_key}"
+        print(f"✅ Uploaded successfully to: {s3_uri}")
+        return s3_uri
 
     except Exception as e:
         print(f"❌ Error uploading file: {e}")

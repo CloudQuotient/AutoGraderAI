@@ -15,10 +15,16 @@ import requests
 import time
 from jose import jwk, jwt as jose_jwt
 from jose.exceptions import JOSEError
+import json
+import uuid
 
-# --- Add this new helper function somewhere in app.py ---
+# --- Function Imports ---
+from S3Handler import CodeUploadS3
+from beforeECS.app_ECS import EvaluateECS
+from feedback import get_code_feedback_from_bedrock
+from plagiarism2.embeddings import generate_embeddings_from_s3
 
-
+API_URL = "https://kvhrupqmih.execute-api.ap-south-1.amazonaws.com/prod/run"
 
 load_dotenv()
 
@@ -396,9 +402,25 @@ def StudentQuestionSubmission(question_id):
                     os.remove(old_path)
 
             try:
-                # Step 4: Upload to S3 using your helper function
-                # s3_path = CodeUploadS3(temp_path)
-                s3_path = "s3://autograder-dummy/code.py" # Hard-coded path, to be changed later on
+                # Step 3: Fetch class info for S3 folder
+                student = db.session.query(Student).filter_by(StudentID=user_id).first()
+                if not student:
+                    return jsonify({"message": "Invalid student ID"}), 404
+
+                instructor_id = student.InstructorID
+                class_obj = db.session.query(Class).filter_by(InstructorID=instructor_id).first()
+                if not class_obj:
+                    return jsonify({"message": "No class found for this instructor"}), 404
+
+                class_id = class_obj.ClassID
+
+                # Step 4: Build S3 folder and file name
+                s3_folder_path = f"s3://autograder-dummy/submissions/class_{class_id}/"
+                extension = os.path.splitext(filename)[1] or ".py"
+                s3_file_name = f"student_{user_id}_question_{question_id}{extension}"
+
+                # Step 5: Upload to S3
+                s3_path = CodeUploadS3(s3_folder_path, s3_file_name, temp_path)
 
                 # Step 5: Check if the student already has a submission for this question
                 existing_submission = db.session.query(Submission).filter_by(
@@ -407,14 +429,27 @@ def StudentQuestionSubmission(question_id):
 
                 if existing_submission:
                     return jsonify({"message": "You have already submitted for this question"}), 400
+                
+                question = db.session.query(Question).filter_by(QuestionID=question_id).first()
+                if not question:
+                    return jsonify({"message": "Invalid question ID"}), 404
+
+                jsonblob = question.TestCases
+
+                result = EvaluateECS(s3_path, jsonblob)
+                print(result)
+                score = result or None
+
+                # feedback = get_code_feedback_from_bedrock(s3_path)
+                feedback = None
 
                 # Step 6: Create a new Submission entry
                 new_submission = Submission(
                     StudentID=user_id,
                     QuestionID=question_id,
                     S3FilePath=s3_path,
-                    Score=None,
-                    Feedback=None
+                    Score=score,
+                    Feedback=feedback
                 )
 
                 db.session.add(new_submission)
@@ -424,8 +459,6 @@ def StudentQuestionSubmission(question_id):
                     "message": "Submission uploaded successfully",
                     "S3FilePath": s3_path
                 }), 200
-
-                #add the route to call the ECS to evaluate the code and bedrock to give feedback and update the submission in the database
 
             except Exception as e:
                 db.session.rollback()
@@ -471,13 +504,20 @@ def StudentQuestionRun(question_id):
                     os.remove(old_path)
 
             try:
-                # Step 4: Upload to S3 (temporary)
-                # s3_path = CodeUploadS3(temp_path)
-                s3_path = "s3://autograder-dummy/code.py" # Hard-coded, change later
+                random_name = f"{uuid.uuid4().hex}.py"
 
-                # Step 5: Call EvaluateECS to run code (not final submission)
-                # results = EvaluateECS(s3_path)
-                results = {} # Hard-coded, change later
+                # Step 4: Upload to S3 "temporary" folder
+                s3_folder_path = f"s3://autograder-dummy/temporary/"
+                s3_path = CodeUploadS3(s3_folder_path, random_name, temp_path)
+
+                question = db.session.query(Question).filter_by(QuestionID=question_id).first()
+                if not question:
+                    return jsonify({"message": "Invalid question ID"}), 404
+
+                jsonblob = question.TestCases
+
+                # Step 5: Call EvaluateECS to test run
+                results = EvaluateECS(s3_path, jsonblob)
 
                 # Step 6: Return the run results to student
                 return jsonify({
@@ -609,37 +649,67 @@ def InstructorQuestionSubmission(class_id, question_id):
 def InstructorEvaluateQuestion(question_id):
     role, user_id = getRoleID()
 
-    if role == 'instructor':
-        if request.method == "POST":
-            # Step 1: Find the question by QuestionID
-            question = db.session.query(Question).filter_by(QuestionID=question_id, InstructorID=user_id).first()
-            if not question:
-                return jsonify({"message": "Question not found or you are not the instructor of this question"}), 404
-
-            # Step 2: Update the status of the question to 'closed'
-            question.Status = 'closed'
-            db.session.commit()
-
-            # Step 3: Get all submissions related to this question
-            submissions = db.session.query(Submission).filter_by(QuestionID=question_id).all()
-
-            # Step 4: Call EvaluateECS and FeedbackBedrock for each submission
-            for submission in submissions:
-                # Call the function to evaluate the submission
-                # EvaluateECS(submission)  # Evaluate and then save the results in DB
-
-                # Call the function to give feedback for the submission
-                # FeedbackBedrock(submission)  # Get Feedbacm and then save the results in DB
-
-                pass
-
-            return jsonify({"message": "Question closed and evaluations processed for all submissions"}), 200
-
-        else:
-            return jsonify({"msg": "Only POST Requests are Allowed"}), 400
-        
-    else:
+    if role != 'instructor':
         return jsonify({"msg": "Only Instructor Role Allowed"}), 400
+
+    try:
+        # Step 1: Find question and validate ownership
+        question = db.session.query(Question).filter_by(QuestionID=question_id, InstructorID=user_id).first()
+        if not question:
+            return jsonify({"message": "Question not found or unauthorized"}), 404
+
+        # Step 2: Update question status
+        question.Status = 'closed'
+        db.session.commit()
+
+        # Step 3: Get all student submissions for this question
+        submissions = db.session.query(Submission).filter_by(QuestionID=question_id).all()
+        if not submissions:
+            return jsonify({"message": "No submissions found for this question"}), 404
+
+        # Step 4: Prepare payload for plagiarism Lambda
+        s3_urls = [sub.S3FilePath for sub in submissions]
+
+        embedding_urls = generate_embeddings_from_s3(s3_urls, "autograder-dummy", "embeddings/")
+
+        filenames = [os.path.basename(sub.S3FilePath) for sub in submissions]
+
+        payload = {
+            "s3_embedding_urls": embedding_urls,
+            "filenames": filenames,
+            "bucket": "autograder-dummy",  # adjust to your S3 bucket
+            "threshold": 0.85
+        }
+
+        print("🚀 Sending request to plagiarism detector...")
+        response = requests.post(API_URL, json=payload, timeout=120)
+
+        if response.status_code != 200:
+            print(f"❌ Lambda call failed: {response.status_code} {response.text}")
+            return jsonify({
+                "message": "Lambda plagiarism check failed",
+                "error": response.text
+            }), 500
+
+        try:
+            plagiarism_result = response.json()
+        except json.JSONDecodeError:
+            plagiarism_result = {"raw_response": response.text}
+
+        question.Results = plagiarism_result
+        db.session.commit()
+
+        print(f"✅ Results stored for Question {question_id}")
+
+        return jsonify({
+            "message": "Question closed and plagiarism evaluation completed",
+            "plagiarism_result": plagiarism_result
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error during instructor evaluation: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 # This function is to be called when the instructor navigates inside a particular Class and clicks on the 'Add New Question' Button
 # The New Question has fields to be filled by the Instructor and sent through the request body to this endpoint and assigned
@@ -724,4 +794,4 @@ if __name__ == '__main__':
     # Create database tables if they don't exist (development convenience)
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False)

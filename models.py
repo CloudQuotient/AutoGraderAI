@@ -51,5 +51,5 @@ class Submission(db.Model):
     StudentID = db.Column(db.Integer, db.ForeignKey('students.StudentID'))
     QuestionID = db.Column(db.Integer, db.ForeignKey('questions.QuestionID'))
     S3FilePath = db.Column(db.Text)
-    Score = db.Column(db.Float)
+    Score = db.Column(db.JSON)
     Feedback = db.Column(db.Text)

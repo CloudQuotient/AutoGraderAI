@@ -284,7 +284,7 @@ function StudentQuestionAttempt() {
                   <div className="space-y-4">
                     <div className="border border-gray-200 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-gray-700">Score:</span>
+                        <span className="text-sm font-medium text-gray-700">Score: </span>
                         <span className={`text-lg font-bold ${
                           questionData.Submission.Score !== null && questionData.Submission.Score !== undefined
                             ? 'text-green-600'

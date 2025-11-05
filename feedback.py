@@ -77,10 +77,3 @@ def get_code_feedback_from_bedrock(s3_uri: str, model_id="anthropic.claude-3-son
     except Exception as e:
         print(f"❌ Error during Bedrock model call: {e}")
         return None
-
-
-if __name__ == "__main__":
-    
-    s3_uri = "s3://your-bucket-name/path/to/your/code_file.py"
-
-    get_code_feedback_from_bedrock(s3_uri)
