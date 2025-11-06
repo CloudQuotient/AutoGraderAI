@@ -21,10 +21,10 @@ import uuid
 # --- Function Imports ---
 from S3Handler import CodeUploadS3
 from beforeECS.app_ECS import EvaluateECS
-from feedback import get_code_feedback_from_bedrock
+from FeedbackFolder.feedback import get_code_feedback_from_bedrock
 from plagiarism2.embeddings import generate_embeddings_from_s3
 
-API_URL = "https://kvhrupqmih.execute-api.ap-south-1.amazonaws.com/prod/run"
+API_URL = "https://ydag0mhwq4.execute-api.ap-south-1.amazonaws.com/prod/run"
 
 load_dotenv()
 
@@ -496,6 +496,7 @@ def StudentQuestionRun(question_id):
             filename = secure_filename(file.filename)
             temp_path = os.path.join(UPLOAD_FOLDER, filename)
             file.save(temp_path)
+            print(temp_path)
 
             old_filename = request.form.get('old_filename')
             if old_filename:
@@ -504,7 +505,11 @@ def StudentQuestionRun(question_id):
                     os.remove(old_path)
 
             try:
-                random_name = f"{uuid.uuid4().hex}.py"
+                # Use the original file extension instead of hardcoded '.py'
+                file_ext = os.path.splitext(filename)[1] or ""
+                random_name = f"{uuid.uuid4().hex}{file_ext}"
+
+                print(random_name)
 
                 # Step 4: Upload to S3 "temporary" folder
                 s3_folder_path = f"s3://autograder-dummy/temporary/"

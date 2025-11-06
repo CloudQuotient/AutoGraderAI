@@ -315,8 +315,83 @@ function StudentQuestionAttempt() {
                 <div className="p-4 border-b border-gray-200">
                   <h2 className="text-xl font-semibold text-gray-900">Test Run Results</h2>
                 </div>
-                <div className="p-4 bg-gray-900 text-green-400 font-mono text-sm rounded-b-lg overflow-auto max-h-64">
-                  <pre>{JSON.stringify(testRunResults, null, 2)}</pre>
+                <div className="p-4 space-y-4">
+                  {(() => {
+                    const resultArray = Array.isArray(testRunResults)
+                      ? testRunResults
+                      : (testRunResults.results || []);
+
+                    const passed = resultArray.filter(r => r.status === 'Passed').length;
+                    const failed = resultArray.filter(r => r.status === 'Failed').length;
+                    const errors = resultArray.filter(r => r.status === 'Error' || r.status === 'Compile Error').length;
+
+                    return (
+                      <>
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">Passed: {passed}</span>
+                          <span className="px-2 py-1 rounded-full bg-yellow-100 text-yellow-700 font-medium">Failed: {failed}</span>
+                          <span className="px-2 py-1 rounded-full bg-red-100 text-red-700 font-medium">Errors: {errors}</span>
+                          <span className="ml-auto text-gray-500">Total: {resultArray.length}</span>
+                        </div>
+
+                        <div className="divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden">
+                          {resultArray.map((res, idx) => (
+                            <div key={idx} className="p-4 bg-white">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-sm text-gray-500">Test {res.test_case || idx + 1}</span>
+                                  <span
+                                    className={
+                                      `text-xs font-semibold px-2 py-1 rounded-full ` +
+                                      (res.status === 'Passed' ? 'bg-green-100 text-green-700' :
+                                       res.status === 'Failed' ? 'bg-yellow-100 text-yellow-700' :
+                                       'bg-red-100 text-red-700')
+                                    }
+                                  >
+                                    {res.status}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                                {res.input !== undefined && (
+                                  <div className="bg-gray-50 rounded p-3">
+                                    <div className="text-gray-500 font-medium mb-1">Input</div>
+                                    <pre className="whitespace-pre-wrap text-gray-800">{String(res.input)}</pre>
+                                  </div>
+                                )}
+                                {res.expected !== undefined && (
+                                  <div className="bg-gray-50 rounded p-3">
+                                    <div className="text-gray-500 font-medium mb-1">Expected</div>
+                                    <pre className="whitespace-pre-wrap text-gray-800">{String(res.expected)}</pre>
+                                  </div>
+                                )}
+                                {(res.actual !== undefined || res.error) && (
+                                  <div className={`rounded p-3 ${res.error ? 'bg-red-50' : 'bg-gray-50'}`}>
+                                    <div className="text-gray-500 font-medium mb-1">{res.error ? 'Error' : 'Actual'}</div>
+                                    <pre className={`whitespace-pre-wrap ${res.error ? 'text-red-700' : 'text-gray-800'}`}>
+                                      {String(res.error || res.actual)}
+                                    </pre>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                          {resultArray.length === 0 && (
+                            <div className="p-4 text-sm text-gray-500">No test results returned.</div>
+                          )}
+                        </div>
+
+                        {/* Raw JSON (collapsed) for debugging when needed */}
+                        <details className="mt-2">
+                          <summary className="text-sm text-gray-500 cursor-pointer">Show raw JSON</summary>
+                          <div className="mt-2 bg-gray-900 text-green-400 font-mono text-xs rounded p-3 overflow-auto max-h-64">
+                            <pre>{JSON.stringify(testRunResults, null, 2)}</pre>
+                          </div>
+                        </details>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             )}

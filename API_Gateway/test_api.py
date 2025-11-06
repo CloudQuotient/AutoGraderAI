@@ -2,7 +2,7 @@ import json
 import requests
 
 # Replace this with your API Gateway invoke URL
-API_URL = " https://kvhrupqmih.execute-api.ap-south-1.amazonaws.com/prod/run"
+API_URL = "https://ydag0mhwq4.execute-api.ap-south-1.amazonaws.com/prod/run"
 
 # Sample payload (same format as your Lambda test event)
 payload = {

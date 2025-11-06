@@ -1,5 +1,8 @@
 import boto3
 import json
+import os
+from dotenv import load_dotenv
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
 
 def get_code_feedback_from_bedrock(s3_uri: str, model_id="anthropic.claude-3-sonnet-20240229-v1:0"):
     """
@@ -16,13 +19,23 @@ def get_code_feedback_from_bedrock(s3_uri: str, model_id="anthropic.claude-3-son
     print(f"📥 Downloading code from: s3://{bucket_name}/{key}")
 
     # --- Step 2: Download file content ---
-    s3_client = boto3.client("s3")
+    s3_client = boto3.client(
+        "s3",
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        region_name=os.getenv("AWS_REGION")
+    )
     obj = s3_client.get_object(Bucket=bucket_name, Key=key)
     code_content = obj["Body"].read().decode("utf-8")
     print(f"✅ Code file downloaded successfully. Size: {len(code_content)} bytes")
 
     # --- Step 3: Setup Bedrock client ---
-    bedrock_client = boto3.client(service_name="bedrock-runtime")
+    bedrock_client = boto3.client(
+        service_name="bedrock-runtime",
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        region_name=os.getenv("AWS_REGION")
+    )
 
     # --- Step 4: Prompt (forces <10 lines, bullet-style) ---
     prompt = f"""

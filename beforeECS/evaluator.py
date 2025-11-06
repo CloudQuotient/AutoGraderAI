@@ -15,7 +15,7 @@ DOCKER_IMAGES = {
     "py": "python:3.10-slim",
     "c": "gcc:latest",
     "cpp": "gcc:latest",
-    "java": "openjdk:17-slim"
+    "java": "eclipse-temurin:17-jdk"
 }
 EXEC_TIMEOUT = 30
 
