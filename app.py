@@ -35,7 +35,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app = Flask(__name__)
 
 # Enable CORS for all routes (you can customize it if needed)
-CORS(app)  # This will allow all domains to access your API, you can limit it later if needed
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)  # This will allow all domains to access your API, you can limit it later if needed
 
 # Configure the app (e.g., database URI)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
@@ -174,7 +174,7 @@ def login():
         'user_id': user_id,
     }
     access_token = create_access_token(identity=str(user_id), additional_claims=additional_claims)
-
+    
     # Step 7: Send your "App Token" back to the frontend
     return jsonify({
         'access_token': access_token,  
@@ -274,7 +274,7 @@ def StudentClasses():
                 }
                 for cls in classes
             ]
-            
+            print("Class details:", class_details)
             return jsonify({"classes": class_details})
 
         else:
