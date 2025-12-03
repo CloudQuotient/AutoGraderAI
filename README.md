@@ -15,7 +15,7 @@ AutoGraderAI is a full-stack, cloud-native platform for automated code grading, 
 - **Database:** Amazon RDS - PostgreSQL (SQLAlchemy ORM)
 - **Cloud:** AWS S3, Lambda, API Gateway, Bedrock, SageMaker
 
-![Architecture Diagram](https://app.eraser.io/workspace/Ku0BayJcOVZEeOyf6OPx?origin=share)
+Architecture Diagram - https://app.eraser.io/workspace/Ku0BayJcOVZEeOyf6OPx?origin=share
 
 ---
 
