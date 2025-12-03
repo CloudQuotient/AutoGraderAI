@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import axios from 'axios'
+import API from '../services/api'
 
 // --- ADD THESE IMPORTS ---
 import { AuthenticationDetails, CognitoUser } from 'amazon-cognito-identity-js'
@@ -68,7 +68,7 @@ function Login() {
 
 
       // 6. Call YOUR backend with the Cognito token (this line is modified)
-      const response = await axios.post('http://localhost:5000/api/login', {
+      const response = await API.post('/api/login', {
         token: cognitoIdToken, // Send the token, not email/pass
       })
 

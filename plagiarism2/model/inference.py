@@ -11,9 +11,8 @@ try:
     env_path = os.path.join(os.path.dirname(__file__), ".env")
     if os.path.exists(env_path):
         load_dotenv(dotenv_path=env_path)
-        print("✅ Loaded environment variables from .env (local mode)")
+        print("Loaded environment variables from .env (local mode)")
 except ModuleNotFoundError:
-    # dotenv not installed in container — ignore silently
     pass
 
 # ----------------- Initialize S3 client -----------------
@@ -29,11 +28,11 @@ if AWS_ACCESS_KEY and AWS_SECRET_KEY:
         aws_secret_access_key=AWS_SECRET_KEY,
         region_name=AWS_REGION,
     )
-    print("✅ Initialized S3 with explicit credentials (local mode)")
+    print("Initialized S3 with explicit credentials (local mode)")
 else:
     # SageMaker mode (IAM role)
     s3 = boto3.client("s3")
-    print("✅ Initialized S3 with IAM role (SageMaker mode)")
+    print("Initialized S3 with IAM role (SageMaker mode)")
 
 # ----------------- Helpers -----------------
 def fetch_embedding(url: str) -> np.ndarray:

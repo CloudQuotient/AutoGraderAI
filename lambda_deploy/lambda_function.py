@@ -20,7 +20,7 @@ def lambda_handler(event, context):
     """
 
     try:
-        # 🔹 Handle both direct Lambda invoke and API Gateway invoke
+        # Handle both direct Lambda invoke and API Gateway invoke
         if "body" in event and isinstance(event["body"], str):
             body = json.loads(event["body"])
         else:

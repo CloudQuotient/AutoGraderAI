@@ -32,7 +32,7 @@ region_name = os.getenv("AWS_DEFAULT_REGION")
 
 # Check all required vars exist
 if not all([aws_access_key_id, aws_secret_access_key, region_name, SAGEMAKER_ENDPOINT, S3_BUCKET]):
-    raise ValueError("❌ Missing one or more required environment variables. Check your .env file.")
+    raise ValueError("Missing one or more required environment variables. Check your .env file.")
 
 # Create the session using environment variables
 session = boto3.Session(
@@ -52,10 +52,10 @@ ACCOUNT_ID = sts_client.get_caller_identity()["Account"]
 # Helper: create zip for lambda code
 # -----------------------------------
 def create_zip():
-    print("📦 Zipping lambda_function.py ...")
+    print("Zipping lambda_function.py ...")
     with zipfile.ZipFile(ZIP_FILE, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.write("lambda_function.py")
-    print("✅ Created", ZIP_FILE)
+    print("Created", ZIP_FILE)
 
 
 # ------------------------------------------------
@@ -74,14 +74,14 @@ def create_iam_role():
     }
 
     try:
-        print("🧩 Creating IAM role...")
+        print("Creating IAM role...")
         role = iam.create_role(
             RoleName=ROLE_NAME,
             AssumeRolePolicyDocument=json.dumps(trust_policy)
         )
-        print("✅ Role created:", role["Role"]["Arn"])
+        print("Role created:", role["Role"]["Arn"])
     except iam.exceptions.EntityAlreadyExistsException:
-        print("ℹ️ Role already exists.")
+        print("Role already exists.")
         role = iam.get_role(RoleName=ROLE_NAME)
 
     # Build permissions policy
@@ -118,9 +118,9 @@ def create_iam_role():
         PolicyName=POLICY_NAME,
         PolicyDocument=json.dumps(permissions)
     )
-    print("✅ Attached inline policy.")
+    print("Attached inline policy.")
 
-    print("⏳ Waiting for IAM role to be usable...")
+    print("Waiting for IAM role to be usable...")
     time.sleep(10)
     return role["Role"]["Arn"]
 
@@ -133,7 +133,7 @@ def deploy_lambda(role_arn):
         zip_bytes = f.read()
 
     try:
-        print("🚀 Creating Lambda function...")
+        print("Creating Lambda function...")
         resp = lambda_client.create_function(
             FunctionName=LAMBDA_NAME,
             Runtime=RUNTIME,
@@ -145,22 +145,22 @@ def deploy_lambda(role_arn):
                 "Variables": {"SAGEMAKER_ENDPOINT": SAGEMAKER_ENDPOINT}
             }
         )
-        print("✅ Created Lambda:", resp["FunctionArn"])
+        print("Created Lambda:", resp["FunctionArn"])
 
     except lambda_client.exceptions.ResourceConflictException:
-        print("ℹ️ Lambda already exists, updating code...")
+        print("Lambda already exists, updating code...")
         resp = lambda_client.update_function_code(
             FunctionName=LAMBDA_NAME,
             ZipFile=zip_bytes
         )
-        print("✅ Updated Lambda code.")
+        print("Updated Lambda code.")
 
 
 # -----------------------------------
 # Optional: Test Lambda invocation
 # -----------------------------------
 def test_lambda():
-    print("🧪 Testing Lambda invocation...")
+    print("Testing Lambda invocation...")
 
     # Correct payload for your Lambda
     test_event = {
@@ -182,7 +182,7 @@ def test_lambda():
 
     # Read and decode response
     result = response["Payload"].read().decode("utf-8")
-    response_dict = json.loads(result)  # result is what you got from Lambda
+    response_dict = json.loads(result)
     body_dict = json.loads(response_dict["body"])
 
     print("Response: ", json.dumps(body_dict, indent=2))
@@ -192,13 +192,13 @@ def test_lambda():
 # MAIN
 # -----------------------------------
 if __name__ == "__main__":
-    # Uncomment for deploying for the first time
+    # Uncomment when deploying for the first time
     # create_zip()
     # role_arn = create_iam_role()
     # deploy_lambda(role_arn)
     test_lambda()
 
-    print("\n✅ Deployment complete!")
+    print("\nDeployment complete!")
     print(f"Lambda Function: {LAMBDA_NAME}")
     print(f"IAM Role: {ROLE_NAME}")
     print(f"SageMaker Endpoint: {SAGEMAKER_ENDPOINT}")

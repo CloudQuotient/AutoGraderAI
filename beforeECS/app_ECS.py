@@ -19,7 +19,6 @@ def EvaluateECS(s3_filepath, jsonb):
         return {"error": "Missing 's3_filepath' or 'jsonb'.", "output": s3_file_path, "output2": jsonb}
 
     payload = {
-        # Provide multiple alias keys for compatibility with different backends
         "s3_filepath": s3_filepath,
         "s3_path": s3_filepath,
         "jsonb": jsonb,

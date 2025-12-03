@@ -15,12 +15,29 @@ function StudentDashboard() {
   const fetchClasses = async () => {
     try {
       setLoading(true)
+      console.log('[StudentDashboard] Fetching classes...')
       const response = await API.get('/api/student/classes')
-      setClasses(response.data.classes || [])
+      console.log('[StudentDashboard] Response:', response.data)
+      
+      const classes = response.data.classes || []
+      console.log(`[StudentDashboard] Found ${classes.length} classes`)
+      
+      if (classes.length === 0 && response.data.message) {
+        console.warn('[StudentDashboard] No classes:', response.data.message)
+        toast.error(response.data.message || 'No classes available')
+      }
+      
+      setClasses(classes)
     } catch (error) {
-      console.error('Error fetching classes:', error)
-      toast.error('Failed to load classes')
-      // For development, show empty state
+      console.error('[StudentDashboard] Error fetching classes:', error)
+      console.error('[StudentDashboard] Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      })
+      
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to load classes'
+      toast.error(errorMsg)
       setClasses([])
     } finally {
       setLoading(false)
@@ -57,7 +74,10 @@ function StudentDashboard() {
           </div>
         ) : classes.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-500">No classes enrolled yet.</p>
+            <p className="text-gray-500 mb-4">No classes enrolled yet.</p>
+            <p className="text-sm text-gray-400">
+              Check browser console (F12) for details
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

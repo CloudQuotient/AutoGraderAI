@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-from flask_cors import CORS  # Import CORS
+from flask_cors import CORS
 from flask_jwt_extended import (
     JWTManager,
     create_access_token,
@@ -10,7 +10,6 @@ from flask_jwt_extended import (
 from dotenv import load_dotenv
 import os
 from werkzeug.utils import secure_filename
-# Add these imports at the top
 import requests
 import time
 from jose import jwk, jwt as jose_jwt
@@ -24,22 +23,20 @@ from beforeECS.app_ECS import EvaluateECS
 from FeedbackFolder.feedback import get_code_feedback_from_bedrock
 from plagiarism2.embeddings import generate_embeddings_from_s3
 
-API_URL = "https://ydag0mhwq4.execute-api.ap-south-1.amazonaws.com/prod/run"
+API_URL = "https://something_something/prod/run"    # URL of API Gateway that Connects the Lambda Function
 
 load_dotenv()
 
+# Temporary Folder for Storing Code Locally before Storing in S3
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Initialize the Flask application
 app = Flask(__name__)
 
-# Enable CORS for all routes (you can customize it if needed)
-CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)  # This will allow all domains to access your API, you can limit it later if needed
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
-# Configure the app (e.g., database URI)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Disable modification tracking
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'change-this-in-prod')
 
 # Load Cognito config from environment
@@ -55,14 +52,12 @@ try:
 except requests.exceptions.RequestException as e:
     print(f"Error fetching JWKS: {e}")
     jwks = []
-# Initialize the database
-# Import the `db` instance and models from models.py
+
+# Import DB Instances and Models from models.py
 from models import db, Student, Instructor, Class, Question, Submission
 
-# Register the app with the SQLAlchemy instance
 db.init_app(app)
 
-# Initialize JWT
 jwt_manager = JWTManager(app)
 
 # ----------------------------- Auth Helpers ------------------------------
@@ -127,20 +122,17 @@ def getRoleID():
 
 @app.route('/api/login', methods=['POST'])
 def login():
-    # Step 1: Get the Cognito ID token from the frontend
     data = request.get_json() or {}
     cognito_id_token = data.get('token')
 
     if not cognito_id_token:
         return jsonify({"message": "Cognito ID token is required"}), 400
 
-    # Step 2: Verify the Cognito token
     claims = verify_cognito_token(cognito_id_token)
     
     if not claims:
         return jsonify({"message": "Invalid or expired Cognito token"}), 401
 
-    # Step 3: Extract email and role from the token
     email = claims.get('email')
     groups = claims.get('cognito:groups', [])
     
@@ -153,7 +145,6 @@ def login():
     if not role or not email:
         return jsonify({"message": "User email or role not found in token"}), 400
 
-    # Step 4: Find the user in your *local* database
     user = None
     if role == 'instructor':
         user = db.session.query(Instructor).filter_by(Email=email).first()
@@ -161,74 +152,25 @@ def login():
         user = db.session.query(Student).filter_by(Email=email).first()
 
     if not user:
-        # This will happen if you have a user in Cognito but forgot
-        # to add them to your local Instructors/Students table.
         return jsonify({"message": f"User {email} not found in local database."}), 404
         
-    # Step 5: Get the local user ID
     user_id = user.InstructorID if role == 'instructor' else user.StudentID
 
-    # Step 6: Create your *own* flask-jwt-extended "App Token"
     additional_claims = {
         'role': role,
         'user_id': user_id,
     }
     access_token = create_access_token(identity=str(user_id), additional_claims=additional_claims)
     
-    # Step 7: Send your "App Token" back to the frontend
     return jsonify({
         'access_token': access_token,  
         'role': role,
         'user_id': user_id,
     }), 200
 
-# @app.route('/api/login', methods=['POST'])
-# def login():
-#     data = request.get_json() or {}
-#     email = data.get('email')
-#     password = data.get('password')
-#     preferred_role = data.get('role')  # optional: 'student' | 'instructor'
-
-#     if not email or not password:
-#         return jsonify({"message": "email and password are required"}), 400
-
-#     # Try instructor if role specified or as first attempt
-#     user = None
-#     role = None
-
-#     if preferred_role in (None, 'instructor'):
-#         user = db.session.query(Instructor).filter_by(Email=email).first()
-#         if user and user.Password == password:
-#             role = 'instructor'
-
-#     # If not instructor, try student
-#     if not role and preferred_role in (None, 'student'):
-#         user = db.session.query(Student).filter_by(Email=email).first()
-#         if user and user.Password == password:
-#             role = 'student'
-
-#     if not role:
-#         return jsonify({"message": "Invalid credentials"}), 401
-
-#     user_id = user.InstructorID if role == 'instructor' else user.StudentID
-
-#     additional_claims = {
-#         'role': role,
-#         'user_id': user_id,
-#     }
-#     # Identity should be a string to avoid "Subject must be a string" errors
-#     access_token = create_access_token(identity=str(user_id), additional_claims=additional_claims)
-
-#     return jsonify({
-#         'access_token': access_token,
-#         'role': role,
-#         'user_id': user_id,
-#     }), 200
-
-
-
 # ------------------------------ Routes ----------------------------------
 
+# To Check if its working (No other use for actual application --- debugging)
 @app.route('/', methods = ["GET", "POST"])
 def index():
     if request.method == "GET":
@@ -248,13 +190,11 @@ def StudentClasses():
     
     if role == 'student':
         if request.method == "GET":
-            # Step 1: Find the student by their StudentID
             student = db.session.query(Student).filter_by(StudentID=user_id).first()
             print(student.StudentID)
             if not student:
                 return jsonify({"message": "Student not found"}), 404
 
-            # Step 2: Find the instructor associated with the student
             instructor = db.session.query(Instructor).filter_by(InstructorID=student.InstructorID).first()
 
             print(instructor.InstructorID, instructor.Name)
@@ -262,10 +202,8 @@ def StudentClasses():
             if not instructor:
                 return jsonify({"message": "Instructor not found for this student"}), 404
 
-            # Step 3: Find all classes taught by this instructor
             classes = db.session.query(Class).filter_by(InstructorID=instructor.InstructorID).all()
 
-            # Step 4: Prepare the class data
             class_details = [
                 {
                     'ClassID': cls.ClassID,
@@ -291,20 +229,16 @@ def StudentQuestions(class_id):
 
     if role == 'student':
         if request.method == "GET":
-            # Step 1: Get the class by class_id
             cls = db.session.query(Class).filter_by(ClassID=class_id).first()
             if not cls:
                 return jsonify({"message": "Class not found"}), 404
 
-            # Step 2: Get the instructor_id from the class
             instructor_id = cls.InstructorID
             if not instructor_id:
                 return jsonify({"message": "Instructor not found for this class"}), 404
 
-            # Step 3: Get all questions for this instructor
             questions = db.session.query(Question).filter(Question.InstructorID == instructor_id).all()
 
-            # Step 4: Serialize the questions into a list of dicts
             question_list = [
                 {
                     "QuestionID": q.QuestionID,
@@ -380,17 +314,14 @@ def StudentQuestionSubmission(question_id):
 
     if role == 'student':
         if request.method == "POST":
-            # Step 1: Check if a file is part of the request
             if 'file' not in request.files:
                 return jsonify({"message": "No file part in the request"}), 400
 
             file = request.files['file']
 
-            # Step 2: Validate the file
             if file.filename == '':
                 return jsonify({"message": "No file selected"}), 400
 
-            # Step 3: Save the file temporarily
             filename = secure_filename(file.filename)
             temp_path = os.path.join(UPLOAD_FOLDER, filename)
             file.save(temp_path)
@@ -402,7 +333,6 @@ def StudentQuestionSubmission(question_id):
                     os.remove(old_path)
 
             try:
-                # Step 3: Fetch class info for S3 folder
                 student = db.session.query(Student).filter_by(StudentID=user_id).first()
                 if not student:
                     return jsonify({"message": "Invalid student ID"}), 404
@@ -414,15 +344,13 @@ def StudentQuestionSubmission(question_id):
 
                 class_id = class_obj.ClassID
 
-                # Step 4: Build S3 folder and file name
+                # autograder-dummy is the bucket that is used to store the submissions
                 s3_folder_path = f"s3://autograder-dummy/submissions/class_{class_id}/"
                 extension = os.path.splitext(filename)[1] or ".py"
                 s3_file_name = f"student_{user_id}_question_{question_id}{extension}"
 
-                # Step 5: Upload to S3
                 s3_path = CodeUploadS3(s3_folder_path, s3_file_name, temp_path)
 
-                # Step 5: Check if the student already has a submission for this question
                 existing_submission = db.session.query(Submission).filter_by(
                     StudentID=user_id, QuestionID=question_id
                 ).first()
@@ -440,10 +368,8 @@ def StudentQuestionSubmission(question_id):
                 print(result)
                 score = result or None
 
-                # feedback = get_code_feedback_from_bedrock(s3_path)
-                feedback = None
+                feedback = get_code_feedback_from_bedrock(s3_path)
 
-                # Step 6: Create a new Submission entry
                 new_submission = Submission(
                     StudentID=user_id,
                     QuestionID=question_id,
@@ -482,17 +408,14 @@ def StudentQuestionRun(question_id):
 
     if role == 'student':
         if request.method == "POST":
-            # Step 1: Ensure file exists in request
             if 'file' not in request.files:
                 return jsonify({"message": "No file part in the request"}), 400
 
             file = request.files['file']
 
-            # Step 2: Validate the file
             if file.filename == '':
                 return jsonify({"message": "No file selected"}), 400
 
-            # Step 3: Save file temporarily
             filename = secure_filename(file.filename)
             temp_path = os.path.join(UPLOAD_FOLDER, filename)
             file.save(temp_path)
@@ -505,13 +428,10 @@ def StudentQuestionRun(question_id):
                     os.remove(old_path)
 
             try:
-                # Use the original file extension instead of hardcoded '.py'
                 file_ext = os.path.splitext(filename)[1] or ""
                 random_name = f"{uuid.uuid4().hex}{file_ext}"
 
-                print(random_name)
-
-                # Step 4: Upload to S3 "temporary" folder
+                # Store the 'Run' codes in a temporary directory and later delete (not needed)
                 s3_folder_path = f"s3://autograder-dummy/temporary/"
                 s3_path = CodeUploadS3(s3_folder_path, random_name, temp_path)
 
@@ -521,10 +441,8 @@ def StudentQuestionRun(question_id):
 
                 jsonblob = question.TestCases
 
-                # Step 5: Call EvaluateECS to test run
                 results = EvaluateECS(s3_path, jsonblob)
 
-                # Step 6: Return the run results to student
                 return jsonify({
                     "message": "Code executed successfully (test run)",
                     "Results": results
@@ -551,15 +469,12 @@ def InstructorClasses():
 
     if role == 'instructor':
         if request.method == "GET":
-            # Step 1: Query the instructor table
             instructor = db.session.query(Instructor).filter_by(InstructorID=user_id).first()
             if not instructor:
                 return jsonify({"message": "Instructor not found"}), 404
 
-            # Step 2: Query the class table for classes taught by this instructor
             classes = db.session.query(Class).filter_by(InstructorID=user_id).all()
 
-            # Step 3: Prepare response
             instructor_info = {
                 "InstructorID": instructor.InstructorID,
                 "Name": instructor.Name,
@@ -622,20 +537,17 @@ def InstructorQuestionSubmission(class_id, question_id):
 
     if role == 'instructor':
         if request.method == "GET":
-            # Fetch the question where QuestionID matches
             question = db.session.query(Question).filter_by(QuestionID=question_id, InstructorID=user_id).first()
 
             if not question:
                 return jsonify({"message": "Question not found or unauthorized access"}), 404
 
-            # Check the status
             if question.Status == 'open':
                 return jsonify({
                     "status": "open",
                     "msg": "Click on Evaluate Button For Results"
                 })
 
-            # If status is closed, return the Results field
             return jsonify({
                 "status": "closed",
                 "results": question.Results
@@ -658,21 +570,17 @@ def InstructorEvaluateQuestion(question_id):
         return jsonify({"msg": "Only Instructor Role Allowed"}), 400
 
     try:
-        # Step 1: Find question and validate ownership
         question = db.session.query(Question).filter_by(QuestionID=question_id, InstructorID=user_id).first()
         if not question:
             return jsonify({"message": "Question not found or unauthorized"}), 404
 
-        # Step 2: Update question status
         question.Status = 'closed'
         db.session.commit()
 
-        # Step 3: Get all student submissions for this question
         submissions = db.session.query(Submission).filter_by(QuestionID=question_id).all()
         if not submissions:
             return jsonify({"message": "No submissions found for this question"}), 404
 
-        # Step 4: Prepare payload for plagiarism Lambda
         s3_urls = [sub.S3FilePath for sub in submissions]
 
         embedding_urls = generate_embeddings_from_s3(s3_urls, "autograder-dummy", "embeddings/")
@@ -682,7 +590,7 @@ def InstructorEvaluateQuestion(question_id):
         payload = {
             "s3_embedding_urls": embedding_urls,
             "filenames": filenames,
-            "bucket": "autograder-dummy",  # adjust to your S3 bucket
+            "bucket": "autograder-dummy",   # Change bucket name if needed
             "threshold": 0.85
         }
 
@@ -690,7 +598,7 @@ def InstructorEvaluateQuestion(question_id):
         response = requests.post(API_URL, json=payload, timeout=120)
 
         if response.status_code != 200:
-            print(f"❌ Lambda call failed: {response.status_code} {response.text}")
+            print(f"Lambda call failed: {response.status_code} {response.text}")
             return jsonify({
                 "message": "Lambda plagiarism check failed",
                 "error": response.text
@@ -704,7 +612,7 @@ def InstructorEvaluateQuestion(question_id):
         question.Results = plagiarism_result
         db.session.commit()
 
-        print(f"✅ Results stored for Question {question_id}")
+        print(f"Results stored for Question {question_id}")
 
         return jsonify({
             "message": "Question closed and plagiarism evaluation completed",
@@ -713,7 +621,7 @@ def InstructorEvaluateQuestion(question_id):
 
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Error during instructor evaluation: {str(e)}")
+        print(f"Error during instructor evaluation: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 # This function is to be called when the instructor navigates inside a particular Class and clicks on the 'Add New Question' Button
@@ -747,22 +655,18 @@ Example Response:
 
     if role == 'instructor':
         if request.method == "POST":
-            # Step 1: Get the instructor associated with the user_id
             instructor = db.session.query(Instructor).filter_by(InstructorID=user_id).first()
             if not instructor:
                 return jsonify({"message": "Instructor not found"}), 404
 
-            # Step 2: Check if the class exists and is taught by the instructor
             cls = db.session.query(Class).filter_by(ClassID=class_id, InstructorID=user_id).first()
             if not cls:
                 return jsonify({"message": "Class not found or unauthorized access"}), 404
 
-            # Step 3: Get the data from the request body
             data = request.get_json()
             if not data or not data.get('QuestionText') or not data.get('TestCases'):
                 return jsonify({"message": "Missing required fields (QuestionText, TestCases)"}), 400
 
-            # Step 4: Create a new Question instance
             new_question = Question(
                 InstructorID=user_id,  # Instructing instructor
                 QuestionText=data['QuestionText'],  # The question text provided
@@ -770,11 +674,9 @@ Example Response:
                 Status='open'  # Default status is open
             )
 
-            # Step 5: Add the question to the database
             db.session.add(new_question)
             db.session.commit()
 
-            # Step 6: Return a success message with the created question's ID
             return jsonify({
                 "message": "Question added successfully",
                 "QuestionID": new_question.QuestionID,
@@ -796,7 +698,6 @@ def page_not_found(e):
 
 # Run the app
 if __name__ == '__main__':
-    # Create database tables if they don't exist (development convenience)
     with app.app_context():
         db.create_all()
     app.run(host="0.0.0.0", port=5000, debug=True, use_reloader = False)

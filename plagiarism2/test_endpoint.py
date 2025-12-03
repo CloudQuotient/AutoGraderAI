@@ -8,14 +8,14 @@ from embeddings import generate_embeddings_from_s3
 env_path = os.path.join(os.path.dirname(__file__), ".env")
 if os.path.exists(env_path):
     load_dotenv(dotenv_path=env_path)
-    print("✅ Loaded environment variables from .env")
+    print("Loaded environment variables from .env")
 
 # ----------------- Config -----------------
 S3_BUCKET = os.getenv("S3_BUCKET", "autograder-dummy")
 ENDPOINT_NAME = os.getenv("SAGEMAKER_ENDPOINT_NAME")
 
 if not ENDPOINT_NAME:
-    raise ValueError("❌ Missing SAGEMAKER_ENDPOINT_NAME in .env")
+    raise ValueError("Missing SAGEMAKER_ENDPOINT_NAME in .env")
 
 # ----------------- Step 1: Input code file URLs -----------------
 test_s3_urls = [
@@ -25,9 +25,9 @@ test_s3_urls = [
 ]
 
 # ----------------- Step 2: Generate embeddings locally & upload -----------------
-print("🔄 Generating embeddings and uploading to S3...")
+print("Generating embeddings and uploading to S3...")
 embedding_urls = generate_embeddings_from_s3(test_s3_urls)
-print("✅ Embeddings uploaded successfully!")
+print("Embeddings uploaded successfully!")
 print("Returned embedding URLs:\n", json.dumps(embedding_urls, indent=2))
 
 # ----------------- Step 3: Prepare payload -----------------
@@ -45,7 +45,7 @@ print(payload_json)
 '''{"s3_embedding_urls": ["s3://autograder-dummy/embeddings/code1.py.npy", "s3://autograder-dummy/embeddings/code2.py.npy", "s3://autograder-dummy/embeddings/code3.py.npy"], "filenames": ["code1.py", "code2.py", "code3.py"], "bucket": "autograder-dummy", "threshold": 0.85}'''
 
 # ----------------- Step 4: Invoke SageMaker endpoint -----------------
-print(f"\n🚀 Invoking SageMaker endpoint: {ENDPOINT_NAME}")
+print(f"\nInvoking SageMaker endpoint: {ENDPOINT_NAME}")
 
 runtime = boto3.client("sagemaker-runtime")
 
@@ -57,10 +57,10 @@ try:
     )
 
     result = json.loads(response["Body"].read().decode("utf-8"))
-    print("\n===== ✅ FINAL OUTPUT FROM ENDPOINT =====")
+    print("\n===== FINAL OUTPUT FROM ENDPOINT =====")
     print(json.dumps(result, indent=2))
 
 except runtime.exceptions.ModelError as e:
-    print("❌ ModelError:", e)
+    print("ModelError:", e)
 except Exception as e:
-    print("❌ Unexpected error:", str(e))
+    print("Unexpected error:", str(e))
